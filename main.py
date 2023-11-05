@@ -30,35 +30,17 @@ aws_bucket = credentials['aws_bucket']
 # API FOR ITEMS
 
 @app.get('/goods', name='goods')
-async def goods():
+async def goods(category: int = None, subcategory: int = None):
     try:
         status = 500
         message = 'Товари не знайдені!'
         db_conn = await db.connect()
         query_string = f"SELECT * FROM goods"
-        goods = await db.fetch_all(query_string)
-        await db.disconnect()
-        if goods:
-            goods_list = [dict(row) for row in goods]
-            while len(goods_list) % 6 != 0:
-                goods_list.append({})
+        if category is not None:
+        	query_string = f"SELECT * FROM goods WHERE category = '{category}'"
+        	if subcategory is not None:
+        		query_string = f"SELECT * FROM goods WHERE category = '{category}' AND subcategory = '{subcategory}'"
 
-            message = [goods_list[i:i + 6] + [{}] * (6 - len(goods_list[i:i + 6])) for i in range(0, len(goods_list), 6)]
-            status = 200
-
-        return JSONResponse(content={'status': status, 'message': message}, status_code=200)
-
-    except Exception as e:
-        return JSONResponse(content={'status': 500, 'message': str(e)}, status_code=500)
-
-
-@app.get('/goods/category/{category}', name='goods')
-async def goods(category: int):
-    try:
-        status = 500
-        message = 'Товари не знайдені!'
-        db_conn = await db.connect()
-        query_string = f"SELECT * FROM goods WHERE category = '{category}'"
         goods = await db.fetch_all(query_string)
         await db.disconnect()
         if goods:
@@ -95,7 +77,7 @@ async def goods(title: str):
 
 
 @app.post('/goods/item/add', name='goods.add')
-async def goods(title: str, description: str, category: int, sum: float, images: List[UploadFile] = File(...)):
+async def goods(title: str, description: str, category: int, sum: float, images: List[UploadFile] = File(...), subcategory: int = None):
     try:
         active = False
         color = 'primary'
@@ -131,7 +113,7 @@ async def goods(title: str, description: str, category: int, sum: float, images:
             if len(images_list) > 0:
                 status = 200
                 images_list = ', '.join(images_list).strip()
-                query_string = f"INSERT INTO goods(title, category, description, sum, active, color, buttonText, images) VALUES('{title}', '{category}', '{description}', '{sum}', '{active}', '{color}', '{buttonText}', '{images_list}')"
+                query_string = f"INSERT INTO goods(title, category, subcategory, description, sum, active, color, buttonText, images) VALUES('{title}', '{category}', '{subcategory}', '{description}', '{sum}', '{active}', '{color}', '{buttonText}', '{images_list}')"
                 add_item = await db.execute(query=query_string)
 
                 if len(images_not_uploaded) != 0:
@@ -151,7 +133,7 @@ async def goods(title: str, description: str, category: int, sum: float, images:
 
 
 @app.put('/goods/update/item/{title}', name='goods.add')
-async def goods(title: str, new_title: str = None, new_description: str = None, new_category: int = None, new_fullsum: float = None, images: List[UploadFile] = File(None)):
+async def goods(title: str, new_title: str = None, new_description: str = None, new_category: int = None, new_subcategory: int = None, new_fullsum: float = None, images: List[UploadFile] = File(None)):
     try:
         status = 500
         message = 'Товар не знайден!'
@@ -196,10 +178,13 @@ async def goods(title: str, new_title: str = None, new_description: str = None, 
             if new_category == None or new_category == goods['category']:
                 new_category = goods['category']
 
+            if new_subcategory == None or new_subcategory == goods['subcategory']:
+                new_subcategory = goods['subcategory']
+
             if new_fullsum == None or new_fullsum == goods['sum']:
                 new_fullsum = goods['sum']
 
-            query_string = f"UPDATE goods SET title = '{new_title}', category = '{new_category}', description = '{new_description}', sum = '{new_fullsum}', images = '{new_images}' WHERE title = '{title}'"
+            query_string = f"UPDATE goods SET title = '{new_title}', category = '{new_category}', subcategory = '{new_subcategory}', description = '{new_description}', sum = '{new_fullsum}', images = '{new_images}' WHERE title = '{title}'"
             await db.execute(query=query_string)
             await db.disconnect()
 
